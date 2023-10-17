@@ -11,8 +11,8 @@ def list_all(mongo_collection):
 
     cursor = mongo_collection.find()
     for document in cursor:
-        if document:
+        if document is None:
+            return []
+        else:
             documents.append(document)
             return documents
-        else:
-            return []
