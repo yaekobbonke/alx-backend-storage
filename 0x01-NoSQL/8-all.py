@@ -9,7 +9,10 @@ def list_all(mongo_collection):
     '''returns documents in a collection'''
     documents = []
 
-    cursor = mongo_collection.find({})
+    cursor = mongo_collection.find()
     for document in cursor:
-        documents.append(document)
-        return documents
+        if document:
+            documents.append(document)
+            return documents
+        else:
+            return []
