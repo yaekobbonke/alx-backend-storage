@@ -2,5 +2,5 @@
 // name="Holberton school" in the collection school
 
 db.school.delete(
-name : "Holberton school"
+{ name : "Holberton school" }
 )
