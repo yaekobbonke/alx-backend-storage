@@ -2,39 +2,70 @@
 """ Advanced - Module for Implementing an expiring
     web cache and tracker
 """
-
-import redis
 import requests
-from typing import Callable
+import redis
+import time
 from functools import wraps
+from typing import Callable
 
-rd = redis.Redis()
+redis_instance = redis.Redis()
 
-
-def count_requests(method: Callable) -> Callable:
-    """ Counting with decorators how many times a request
-        has been made
+def cache_result(expiration: int) -> Callable:
     """
+    Decorator that caches the result of a method using Redis.
 
-    @wraps(method)
-    def wrapper(url):
-        """ Wrapper for decorator functionality """
-        rd.incr(f"count:{url}")
-        cached_html = rd.get(f"cached:{url}")
-        if cached_html:
-            return cached_html.decode('utf-8')
+    Args:
+        expiration: Expiration time for the cached result in seconds.
 
-        html = method(url)
-        rd.setex(f"cached:{url}", 10, html)
-        return html
+    Returns:
+        Callable: Decorator function.
+    """
+    def decorator(method: Callable) -> Callable:
+        @wraps(method)
+        def wrapper(url: str) -> str:
+            """
+            Wrapper function that tracks URL access count, caches the result, and returns it.
 
-    return wrapper
+            Args:
+                url: The URL to fetch the page content from.
 
+            Returns:
+                str: The HTML content of the URL.
 
-@count_requests
+            """
+            key = f"count:{url}"
+            count = redis_instance.get(key)
+            if count is None:
+                count = 0
+            else:
+                count = int(count)
+
+            count += 1
+            redis_instance.set(key, count, ex=expiration)
+
+            result_key = f"result:{url}"
+            result = redis_instance.get(result_key)
+            if result is None:
+                result = method(url)
+                redis_instance.set(result_key, result, ex=expiration)
+
+            return result
+        return wrapper
+    return decorator
+
+@cache_result(expiration=10)
 def get_page(url: str) -> str:
-    """ requests module to obtain the HTML
-        content of a particular URL and returns it.
     """
-    req = requests.get(url)
-    return req.text
+    Fetches the HTML content of a given URL.
+
+    Args:
+        url: The URL to fetch the page content from.
+
+    Returns:
+        str: The HTML content of the URL.
+    """
+    response = requests.get(url)
+    return response.text
+
+url = "http://slowwly.robertomurray.co.uk/delay/1000/url/http://www.example.com"
+print(get_page(url))
